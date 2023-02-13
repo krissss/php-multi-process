@@ -1,0 +1,25 @@
+{
+  "name": "kriss/multi-process",
+  "description": "Multi Async Process Manager based on symfony/process",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "kriss",
+      "email": "462679766@qq.com"
+    }
+  ],
+  "minimum-stability": "stable",
+  "require": {
+    "php": ">=7.2",
+    "symfony/process": "^4|^5|^6"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kriss\\MultiProcess\\": "src/"
+    }
+  },
+  "require-dev": {
+    "psr/log": "^1.1"
+  }
+}
