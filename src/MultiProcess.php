@@ -28,11 +28,11 @@ class MultiProcess
      */
     protected $queue = [];
     /**
-     * @var array|Process[]
+     * @var array<string, Process>
      */
     protected $inProcess = [];
     /**
-     * @var array|Process[]
+     * @var array<string, Process>
      */
     protected $results = [];
 
@@ -69,6 +69,20 @@ class MultiProcess
         }
 
         $this->queue[] = [$pendingProcess, $name];
+        return $this;
+    }
+
+    /**
+     * 批量添加
+     * @param array $pendingProcesses
+     * @return $this
+     */
+    public function addMulti(array $pendingProcesses): self
+    {
+        foreach ($pendingProcesses as $name => $pendingProcess) {
+            $name = is_string($name) ? $name : null;
+            $this->add($pendingProcess, $name);
+        }
         return $this;
     }
 

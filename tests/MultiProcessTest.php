@@ -48,6 +48,22 @@ it('test MultiProcess add error', function () {
     }
 });
 
+it('test MultiProcess addMulti', function () {
+    $results = MultiProcess::create()
+        ->addMulti([
+            'custom_name' => 'hostname',
+            'custom_name2' => 'hostname',
+        ])
+        ->wait();
+
+    $results2 = MultiProcess::create()
+        ->add('hostname', 'custom_name')
+        ->add('hostname', 'custom_name2')
+        ->wait();
+
+    $this->assertEquals($results->getOutputs(), $results2->getOutputs());
+});
+
 it('test PendingProcess', function () {
     $outputs = [];
     MultiProcess::create()
