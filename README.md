@@ -20,6 +20,8 @@ composer require kriss/multi-process
 
 ## 使用
 
+基本使用
+
 ```php
 use Kriss\MultiProcess\MultiProcess;
 use Kriss\MultiProcess\PendingProcess;
@@ -38,6 +40,29 @@ $results = MultiProcess::create()
     ->wait();
 
 var_dump($results->getOutputs());
+```
+
+可以使用以下方式对比测试使用该扩展和php原生循环的时间区别
+
+```php
+use Kriss\MultiProcess\MultiProcess;
+
+$filename = 'https://www.example.com/';
+
+$startTime = microtime(true);
+for ($i = 0; $i < 3; $i++) {
+    file_get_contents($filename);
+}
+echo ('use time: ' . round(microtime(true) - $startTime, 6)) . PHP_EOL; // 3秒以上
+
+for ($i = 0; $i < 3; $i++) {
+    $processes[] = PendingProcess::fromShellCommandline("php -r \"echo file_get_contents('$filename');\"");
+}
+$startTime = microtime(true);
+MultiProcess::create()
+    ->addMulti($processes)
+    ->wait();
+echo ('use time: ' . round(microtime(true) - $startTime, 6)) . PHP_EOL; // 1秒多
 ```
 
 其他详见 [tests](./tests)
