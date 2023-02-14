@@ -14,12 +14,13 @@
     "php": ">=7.2",
     "symfony/process": "^4|^5|^6"
   },
+  "require-dev": {
+    "psr/log": "^1.1",
+    "pestphp/pest": "^1.22"
+  },
   "autoload": {
     "psr-4": {
       "Kriss\\MultiProcess\\": "src/"
     }
-  },
-  "require-dev": {
-    "psr/log": "^1.1"
   }
 }

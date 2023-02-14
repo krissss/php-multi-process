@@ -24,13 +24,17 @@ class MultiProcess
     protected $checkWaitMicroseconds = 0;
 
     /**
-     * @var array
+     * @var array|PendingProcess[]|Process[]
      */
     protected $queue = [];
     /**
      * @var array|Process[]
      */
     protected $inProcess = [];
+    /**
+     * @var array|Process[]
+     */
+    protected $results = [];
 
     public function __construct(array $config = [])
     {
@@ -51,25 +55,28 @@ class MultiProcess
 
     /**
      * 添加一个即将执行的进程
-     * @param Process|string $process
-     * @param callable|null $startCallback
+     * @param PendingProcess|Process|string $pendingProcess
+     * @param string|null $name
      * @return $this
      */
-    public function add($process, ?callable $startCallback = null): self
+    public function add($pendingProcess, string $name = null): self
     {
-        if (!$process instanceof Process) {
-            $process = Process::fromShellCommandline($process);
+        if (is_string($pendingProcess)) {
+            $pendingProcess = PendingProcess::fromShellCommandline($pendingProcess);
+        }
+        if (!$pendingProcess instanceof Process) {
+            throw new \InvalidArgumentException('$pendingProcess must be an Process');
         }
 
-        $this->queue[] = [$process, $startCallback];
+        $this->queue[] = [$pendingProcess, $name];
         return $this;
     }
 
     /**
      * 启动并等待所有进程执行完成
-     * @return void
+     * @return MultiProcessResults
      */
-    public function wait(): void
+    public function wait(): MultiProcessResults
     {
         foreach ($this->queue as $item) {
             $this->startOneProcess(...$item);
@@ -77,15 +84,17 @@ class MultiProcess
 
         $this->waitAllProcess();
         unset($this->queue);
+
+        return new MultiProcessResults($this->results);
     }
 
     /**
      * 启动一个进程
      * @param Process $process
-     * @param callable|null $callback
+     * @param string|null $name
      * @return void
      */
-    protected function startOneProcess(Process $process, ?callable $callback = null): void
+    protected function startOneProcess(Process $process, string $name = null): void
     {
         while (!$this->canStartNextProcess()) {
             if ($this->checkWaitMicroseconds > 0) {
@@ -93,13 +102,12 @@ class MultiProcess
             }
         }
 
-        $process->start($callback);
+        $startCallback = $process instanceof PendingProcess ? $process->getStartCallback() : null;
+        $process->start($startCallback);
         $pid = $process->getPid();
-        if (!$pid) {
-            return;
-        }
-        $this->inProcess[$pid] = $process;
-        $this->log('start process: ' . $pid, 'debug');
+        $name = $name ?? ('pid_' . $pid);
+        $this->inProcess[$name] = $process;
+        $this->log('start process: ' . $name, 'debug');
     }
 
     /**
@@ -113,8 +121,8 @@ class MultiProcess
         }
 
         $can = false;
-        foreach ($this->inProcess as $pid => $process) {
-            if ($this->checkAndReleaseOverProcess($pid, $process)) {
+        foreach ($this->inProcess as $name => $process) {
+            if ($this->checkAndReleaseOverProcess($name, $process)) {
                 $can = true;
             }
         }
@@ -135,8 +143,8 @@ class MultiProcess
         if (count($this->inProcess) <= 0) {
             return;
         }
-        foreach ($this->inProcess as $pid => $process) {
-            $this->checkAndReleaseOverProcess($pid, $process);
+        foreach ($this->inProcess as $name => $process) {
+            $this->checkAndReleaseOverProcess($name, $process);
         }
 
         if ($this->checkWaitMicroseconds > 0) {
@@ -148,18 +156,21 @@ class MultiProcess
 
     /**
      * 检查并释放已经完成的进程
-     * @param int $pid
+     * @param string $name
      * @param Process $process
      * @return bool
      */
-    protected function checkAndReleaseOverProcess(int $pid, Process $process): bool
+    protected function checkAndReleaseOverProcess(string $name, Process $process): bool
     {
         if ($process->isRunning()) {
             return false;
         }
 
-        $this->log("{$pid} over", 'debug');
-        unset($this->inProcess[$pid]);
+        $this->log("{$name} over", 'debug');
+
+        $this->results[$name] = $process;
+        unset($this->inProcess[$name]);
+
         return true;
     }
 
