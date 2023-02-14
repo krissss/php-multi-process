@@ -23,6 +23,7 @@ composer require kriss/multi-process
 ```php
 use Kriss\MultiProcess\MultiProcess;
 use Kriss\MultiProcess\PendingProcess;
+use Symfony\Component\Process\Process;
 
 $results = MultiProcess::create()
     ->add('hostname')
