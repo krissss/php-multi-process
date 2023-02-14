@@ -25,7 +25,7 @@ it('test MultiProcess config', function () {
     MultiProcess::create([
         'logger' => new \Psr\Log\NullLogger(),
         'maxProcessCount' => 2,
-        'checkWaitMicroseconds' => 500,
+        'checkWaitMicroseconds' => 0,
     ])
         ->add('sleep 1')
         ->add(new Process(['sleep 1']))
