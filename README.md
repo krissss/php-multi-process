@@ -17,6 +17,7 @@ composer require kriss/multi-process
 - 支持控制进程检查频率
 - 获取进程最终输出
 - 同步获取进程输出
+- 支持 cli 和 fpm
 
 ## 使用
 

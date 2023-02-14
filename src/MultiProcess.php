@@ -18,10 +18,10 @@ class MultiProcess
      */
     protected $maxProcessCount = 0;
     /**
-     * 检查最大进程数的间隔时间（毫秒），为 0 时不等待
+     * 检查最大进程数的间隔时间（毫秒）
      * @var int
      */
-    protected $checkWaitMicroseconds = 0;
+    protected $checkWaitMicroseconds = 10;
 
     /**
      * @var array|PendingProcess[]|Process[]
@@ -40,6 +40,10 @@ class MultiProcess
     {
         foreach ($config as $key => $value) {
             $this->{$key} = $value;
+        }
+        if ($this->checkWaitMicroseconds <= 0) {
+            // 不能不 sleep，会导致死循环(fpm下)，原因目前未知
+            $this->checkWaitMicroseconds = 10;
         }
     }
 
@@ -111,9 +115,7 @@ class MultiProcess
     protected function startOneProcess(Process $process, string $name = null): void
     {
         while (!$this->canStartNextProcess()) {
-            if ($this->checkWaitMicroseconds > 0) {
-                usleep($this->checkWaitMicroseconds);
-            }
+            usleep($this->checkWaitMicroseconds);
         }
 
         $startCallback = $process instanceof PendingProcess ? $process->getStartCallback() : null;
@@ -161,9 +163,7 @@ class MultiProcess
             $this->checkAndReleaseOverProcess($name, $process);
         }
 
-        if ($this->checkWaitMicroseconds > 0) {
-            usleep($this->checkWaitMicroseconds);
-        }
+        usleep($this->checkWaitMicroseconds);
 
         $this->waitAllProcess();
     }
