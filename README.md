@@ -18,6 +18,7 @@ composer require kriss/multi-process
 - 获取进程最终输出
 - 同步获取进程输出
 - 支持 cli 和 fpm
+- 支持调用系统命令和 php 代码
 
 ## 使用
 
@@ -28,6 +29,7 @@ use Kriss\MultiProcess\MultiProcess;
 use Kriss\MultiProcess\PendingProcess;
 use Symfony\Component\Process\Process;
 
+// 调用系统命令
 $results = MultiProcess::create()
     ->add('hostname')
     ->add(new Process(['ls']))
@@ -37,9 +39,22 @@ $results = MultiProcess::create()
             ->setStartCallback(function ($type, $buffer) {
                 echo $buffer;
             })
-    )
-    ->wait();
+    );
+    
+var_dump($results->getOutputs());
 
+// 调用 PHP 代码
+$value = 123;
+$results = MultiProcess::create()
+    // callback
+    ->add(function () use ($value) {
+        // 支持 use 和 $this 使用
+        return $value;
+    })
+    // 调用 SomeClass::method
+    //->add([SomeClass::class, 'method'])
+    ->wait();
+    
 var_dump($results->getOutputs());
 ```
 
