@@ -1,7 +1,7 @@
 #!/usr/bin/env php
 <?php
 
-use Kriss\MultiProcess\SymfonyConsole\Commands\DynamicCallCommand;
+use Kriss\MultiProcess\SymfonyConsole\Commands\TaskCallCommand;
 use Symfony\Component\Console\Application;
 
 $existingAutoloaderFiles = array_filter([
@@ -20,5 +20,5 @@ if (!$autoloader) {
 require_once $autoloader;
 
 $app = new Application();
-$app->add(new DynamicCallCommand());
+$app->add(new TaskCallCommand());
 $app->run();

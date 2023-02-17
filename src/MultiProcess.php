@@ -2,7 +2,9 @@
 
 namespace Kriss\MultiProcess;
 
-use Kriss\MultiProcess\SymfonyConsole\Commands\DynamicCallCommand;
+use Closure;
+use Kriss\MultiProcess\SymfonyConsole\Commands\TaskCallCommand;
+use Kriss\MultiProcess\SymfonyConsole\Helper\TaskHelper;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Process\Process;
 
@@ -60,7 +62,7 @@ class MultiProcess
 
     /**
      * 添加一个即将执行的进程
-     * @param PendingProcess|Process|string $pendingProcess
+     * @param mixed $pendingProcess
      * @param string|null $name
      * @return $this
      */
@@ -68,6 +70,9 @@ class MultiProcess
     {
         if (is_string($pendingProcess)) {
             $pendingProcess = PendingProcess::fromShellCommandline($pendingProcess);
+        }
+        if (is_array($pendingProcess) || $pendingProcess instanceof Closure) {
+            return $this->addTask($pendingProcess, $name);
         }
         if (!$pendingProcess instanceof Process) {
             throw new \InvalidArgumentException('$pendingProcess must be an Process');
@@ -78,36 +83,31 @@ class MultiProcess
     }
 
     /**
+     * @param $task
+     * @param string|null $name
+     * @return $this
+     */
+    protected function addTask($task, string $name = null): self
+    {
+        $task = TaskHelper::encode($task);
+
+        $this->addCommand(TaskCallCommand::COMMAND_NAME, [
+            $task
+        ], $name);
+
+        return $this;
+    }
+
+    /**
      * 添加 command
      * @param string $command
      * @param array $args
      * @param string|null $name
      * @return $this
      */
-    public function addCommand(string $command, array $args = [], string $name = null): self
+    protected function addCommand(string $command, array $args = [], string $name = null): self
     {
         return $this->add(new Process(['php', __DIR__ . '/../bin/console', $command, ...$args]), $name);
-    }
-
-    /**
-     * 添加动态调用
-     * @param array $call
-     * @param array $args
-     * @param string|null $name
-     * @return $this
-     */
-    public function addDynamicCall(array $call, array $args = [], string $name = null): self
-    {
-        [$class, $staticMethod] = $call;
-        if (!is_string($class) || !class_exists($class)) {
-            throw new \InvalidArgumentException('$call 第一个参数必须是 class 名');
-        }
-
-        return $this->addCommand(DynamicCallCommand::COMMAND_NAME, [
-            $class,
-            "--method={$staticMethod}",
-            ...array_map(fn($value) => "--arg=" . $value, $args)
-        ], $name);
     }
 
     /**

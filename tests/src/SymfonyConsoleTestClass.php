@@ -2,13 +2,43 @@
 
 namespace Kriss\MultiProcessTests;
 
+use Kriss\MultiProcess\MultiProcess;
+
 class SymfonyConsoleTestClass
 {
-    public static function handle($param1, $param2)
+    private $user;
+
+    public static function makeResults()
     {
-        return [
-            'param1' => $param1,
-            'param2' => $param2,
-        ];
+        $self = new self();
+        $self->user = 'user';
+
+        $result = 'new ok';
+        return MultiProcess::create()
+            // 数组形式的静态调用
+            ->add([SymfonyConsoleTestClass::class, 'handle'], 'p1')
+            // Closure
+            ->add(fn() => SymfonyConsoleTestClass::handle(), 'p2')
+            // Closure 支持 use
+            ->add(fn() => SymfonyConsoleTestClass::handle($result), 'p3')
+            // 数组形式的对象调用
+            ->add([$self, 'getUser'], 'p4')
+            // Closure 支持 $this
+            ->add(fn() => $self->user, 'p5')
+            // 返回数组形式
+            ->add(fn() => [1, 2], 'p6')
+            // 返回对象
+            ->add(fn() => $self, 'p7')
+            ->wait();
+    }
+
+    public static function handle($result = null)
+    {
+        return $result ?: 'ok';
+    }
+
+    public function getUser()
+    {
+        return $this->user;
     }
 }

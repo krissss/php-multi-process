@@ -2,6 +2,8 @@
 
 use Kriss\MultiProcess\MultiProcess;
 use Kriss\MultiProcess\PendingProcess;
+use Kriss\MultiProcess\SymfonyConsole\Helper\TaskHelper;
+use Kriss\MultiProcessTests\SymfonyConsoleTestClass;
 use Symfony\Component\Process\Process;
 
 it('test MultiProcess', function () {
@@ -41,7 +43,7 @@ it('test MultiProcess config', function () {
 it('test MultiProcess add error', function () {
     try {
         MultiProcess::create()
-            ->add(['sleep', '1'])
+            ->add(new class {})
             ->wait();
     } catch (Throwable $e) {
         $this->assertTrue($e instanceof InvalidArgumentException);
@@ -93,4 +95,24 @@ it('test MultiProcessResult', function () {
     $this->assertEquals(array_fill(0, 3, $hostname), array_values(array_map('trim', $results->getOutputs())));
     $this->assertEquals($hostname, trim($results->getOutput('custom_name')));
     $this->assertEquals('', trim($results->getOutput('not_exist_process_name')));
+});
+
+it('test task call', function () {
+    // pest 环境下无法正确序列化 Closure，所以需要放到正确的 class
+    $results = SymfonyConsoleTestClass::makeResults();
+
+    $this->assertEquals('ok', trim($results->getOutput('p1')));
+    $this->assertEquals('ok', trim($results->getOutput('p2')));
+    $this->assertEquals('new ok', trim($results->getOutput('p3')));
+    $this->assertEquals('user', trim($results->getOutput('p4')));
+    $this->assertEquals('user', trim($results->getOutput('p5')));
+
+    $result = trim($results->getOutput('p6'));
+    $this->assertEquals([1, 2], TaskHelper::decode($result));
+
+    $result = trim($results->getOutput('p7'));
+    $obj = TaskHelper::decode($result);
+    $this->assertInstanceOf(SymfonyConsoleTestClass::class, $obj);
+    /** @var SymfonyConsoleTestClass $obj */
+    $this->assertEquals('user', $obj->getUser());
 });
