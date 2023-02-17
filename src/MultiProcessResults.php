@@ -9,7 +9,7 @@ class MultiProcessResults
     /**
      * @var array<string, Process>
      */
-    protected $results = [];
+    protected array $results = [];
 
     public function __construct(array $results)
     {

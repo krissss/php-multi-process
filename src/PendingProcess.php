@@ -2,25 +2,26 @@
 
 namespace Kriss\MultiProcess;
 
+use Closure;
 use Symfony\Component\Process\Process;
 
 class PendingProcess extends Process
 {
-    protected $startCallback = null;
+    protected ?Closure $startCallback = null;
 
     /**
-     * @return null
+     * @return null|Closure
      */
-    public function getStartCallback()
+    public function getStartCallback(): ?Closure
     {
         return $this->startCallback;
     }
 
     /**
-     * @param null $startCallback
-     * @return PendingProcess
+     * @param null|Closure $startCallback
+     * @return $this
      */
-    public function setStartCallback($startCallback)
+    public function setStartCallback(?Closure $startCallback): self
     {
         $this->startCallback = $startCallback;
         return $this;
