@@ -3,8 +3,6 @@
 namespace Kriss\MultiProcess;
 
 use Closure;
-use Kriss\MultiProcess\SymfonyConsole\Commands\TaskCallCommand;
-use Kriss\MultiProcess\SymfonyConsole\Helper\TaskHelper;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Process\Process;
 
@@ -29,7 +27,7 @@ class MultiProcess
     protected int $checkWaitMicroseconds = self::DEFAULT_SLEEP_TIME;
 
     /**
-     * @var array|PendingProcess[]|Process[]
+     * @var array|Process[]
      */
     protected array $queue = [];
     /**
@@ -71,45 +69,20 @@ class MultiProcess
     public function add($pendingProcess, string $name = null): self
     {
         if (is_string($pendingProcess)) {
-            $pendingProcess = PendingProcess::fromShellCommandline($pendingProcess);
+            $pendingProcess = Process::fromShellCommandline($pendingProcess);
         }
         if (is_array($pendingProcess) || $pendingProcess instanceof Closure) {
-            return $this->addTask($pendingProcess, $name);
+            $pendingProcess = PendingTaskProcess::createFromTask($pendingProcess);
         }
-        if (!$pendingProcess instanceof Process) {
-            throw new \InvalidArgumentException('$pendingProcess must be an Process');
+        if (!(
+            $pendingProcess instanceof Process
+            || $pendingProcess instanceof PendingProcess
+        )) {
+            throw new \InvalidArgumentException('$pendingProcess type error');
         }
 
         $this->queue[] = [$pendingProcess, $name];
         return $this;
-    }
-
-    /**
-     * @param $task
-     * @param string|null $name
-     * @return $this
-     */
-    protected function addTask($task, string $name = null): self
-    {
-        $task = TaskHelper::encode($task);
-
-        $this->addCommand(TaskCallCommand::COMMAND_NAME, [
-            $task
-        ], $name);
-
-        return $this;
-    }
-
-    /**
-     * 添加 command
-     * @param string $command
-     * @param array $args
-     * @param string|null $name
-     * @return $this
-     */
-    protected function addCommand(string $command, array $args = [], string $name = null): self
-    {
-        return $this->add(new Process(['php', __DIR__ . '/../bin/console', $command, ...$args]), $name);
     }
 
     /**
@@ -148,13 +121,19 @@ class MultiProcess
 
     /**
      * 启动一个进程
-     * @param Process $process
+     * @param Process|PendingProcess $pendingProcess
      * @param string|null $name
      * @return void
      */
-    protected function startOneProcess(Process $process, string $name = null): void
+    protected function startOneProcess($pendingProcess, string $name = null): void
     {
-        $startCallback = $process instanceof PendingProcess ? $process->getStartCallback() : null;
+        $process = $pendingProcess;
+        $startCallback = null;
+        if ($pendingProcess instanceof PendingProcess) {
+            $process = $pendingProcess->toSymfonyProcess();
+            $startCallback = $pendingProcess->getStartCallback();
+        }
+
         $process->start($startCallback);
 
         $pid = $process->getPid();

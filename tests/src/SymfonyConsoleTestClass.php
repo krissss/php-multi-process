@@ -3,6 +3,7 @@
 namespace Kriss\MultiProcessTests;
 
 use Kriss\MultiProcess\MultiProcess;
+use Kriss\MultiProcess\PendingTaskProcess;
 
 class SymfonyConsoleTestClass
 {
@@ -29,6 +30,8 @@ class SymfonyConsoleTestClass
             ->add(fn() => [1, 2], 'p6')
             // 返回对象
             ->add(fn() => $self, 'p7')
+            // 使用 PendingTaskProcess
+            ->add(PendingTaskProcess::createFromTask(fn() => 'ok'), 'p8')
             ->wait();
     }
 

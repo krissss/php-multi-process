@@ -30,7 +30,7 @@ class MultiProcessResults
     {
         $data = [];
         foreach ($this->getProcesses() as $name => $process) {
-            $data[$name] = $process->getOutput();
+            $data[$name] = trim($process->getOutput());
         }
         return $data;
     }
@@ -38,7 +38,7 @@ class MultiProcessResults
     public function getOutput(string $name): string
     {
         if ($process = $this->getProcess($name)) {
-            return $process->getOutput();
+            return trim($process->getOutput());
         }
         return '';
     }

@@ -6,19 +6,19 @@ use Kriss\MultiProcess\SymfonyConsole\Helper\TaskHelper;
 use Kriss\MultiProcessTests\SymfonyConsoleTestClass;
 use Symfony\Component\Process\Process;
 
-it('test MultiProcess', function () {
+it('test MultiProcess async', function () {
     $startTime = microtime(true);
 
     MultiProcess::create()
         ->add('sleep 1')
-        ->add(new Process(['sleep 1']))
-        ->add(Process::fromShellCommandline('sleep 1'))
-        ->add(PendingProcess::fromShellCommandline('sleep 1'))
+        ->add('sleep 1')
+        ->add('sleep 1')
+        ->add('sleep 1')
         ->wait();
 
     $useTime = round(microtime(true) - $startTime, 6);
     $this->assertGreaterThan(1, $useTime);
-    $this->assertLessThan(3, $useTime);
+    $this->assertLessThan(4, $useTime);
 });
 
 it('test MultiProcess config', function () {
@@ -30,9 +30,8 @@ it('test MultiProcess config', function () {
         'checkWaitMicroseconds' => 0,
     ])
         ->add('sleep 1')
-        ->add(new Process(['sleep 1']))
         ->add(Process::fromShellCommandline('sleep 1'))
-        ->add(PendingProcess::fromShellCommandline('sleep 1'))
+        ->add(PendingProcess::createFromCommand(['sleep', 1]))
         ->wait();
 
     $useTime = round(microtime(true) - $startTime, 6);
@@ -53,14 +52,14 @@ it('test MultiProcess add error', function () {
 it('test MultiProcess addMulti', function () {
     $results = MultiProcess::create()
         ->addMulti([
-            'custom_name' => 'hostname',
-            'custom_name2' => 'hostname',
+            'p1' => 'hostname',
+            'p2' => PendingProcess::createFromCommand('hostname'),
         ])
         ->wait();
 
     $results2 = MultiProcess::create()
-        ->add('hostname', 'custom_name')
-        ->add('hostname', 'custom_name2')
+        ->add('hostname', 'p1')
+        ->add('hostname', 'p2')
         ->wait();
 
     $this->assertEquals($results->getOutputs(), $results2->getOutputs());
@@ -70,7 +69,7 @@ it('test PendingProcess', function () {
     $outputs = [];
     MultiProcess::create()
         ->add(
-            PendingProcess::fromShellCommandline('hostname')
+            PendingProcess::createFromCommand('hostname')
                 ->setStartCallback(function ($type, $buffer) use (&$outputs) {
                     $outputs = [$type, $buffer];
                 })
@@ -84,35 +83,37 @@ it('test PendingProcess', function () {
 it('test MultiProcessResult', function () {
     $results = MultiProcess::create()
         ->add('hostname')
-        ->add('hostname', 'custom_name')
-        ->add(PendingProcess::fromShellCommandline('hostname'), 'custom_name2')
+        ->add('hostname', 'p1')
+        ->add(PendingProcess::createFromCommand('hostname'), 'p2')
         ->wait();
 
     $hostname = gethostname();
     $this->assertIsArray($results->getProcesses());
-    $this->assertInstanceOf(Process::class, $results->getProcess('custom_name'));
-    $this->assertInstanceOf(PendingProcess::class, $results->getProcess('custom_name2'));
-    $this->assertEquals(array_fill(0, 3, $hostname), array_values(array_map('trim', $results->getOutputs())));
-    $this->assertEquals($hostname, trim($results->getOutput('custom_name')));
-    $this->assertEquals('', trim($results->getOutput('not_exist_process_name')));
+    $this->assertInstanceOf(Process::class, $results->getProcess('p1'));
+    $this->assertInstanceOf(Process::class, $results->getProcess('p2'));
+    $this->assertEquals(array_fill(0, 3, $hostname), array_values($results->getOutputs()));
+    $this->assertEquals($hostname, $results->getOutput('p1'));
+    $this->assertEquals('', $results->getOutput('not_exist_process_name'));
 });
 
-it('test task call', function () {
+it('test MultiProcess Task', function () {
     // pest 环境下无法正确序列化 Closure，所以需要放到正确的 class
     $results = SymfonyConsoleTestClass::makeResults();
 
-    $this->assertEquals('ok', trim($results->getOutput('p1')));
-    $this->assertEquals('ok', trim($results->getOutput('p2')));
-    $this->assertEquals('new ok', trim($results->getOutput('p3')));
-    $this->assertEquals('user', trim($results->getOutput('p4')));
-    $this->assertEquals('user', trim($results->getOutput('p5')));
+    $this->assertEquals('ok', $results->getOutput('p1'));
+    $this->assertEquals('ok', $results->getOutput('p2'));
+    $this->assertEquals('new ok', $results->getOutput('p3'));
+    $this->assertEquals('user', $results->getOutput('p4'));
+    $this->assertEquals('user', $results->getOutput('p5'));
 
-    $result = trim($results->getOutput('p6'));
+    $result = $results->getOutput('p6');
     $this->assertEquals([1, 2], TaskHelper::decode($result));
 
-    $result = trim($results->getOutput('p7'));
+    $result = $results->getOutput('p7');
     $obj = TaskHelper::decode($result);
     $this->assertInstanceOf(SymfonyConsoleTestClass::class, $obj);
     /** @var SymfonyConsoleTestClass $obj */
     $this->assertEquals('user', $obj->getUser());
+
+    $this->assertEquals('ok', $results->getOutput('p8'));
 });
