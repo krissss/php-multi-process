@@ -2,6 +2,7 @@
 
 namespace Kriss\MultiProcess;
 
+use Kriss\MultiProcess\SymfonyConsole\Commands\DynamicCallCommand;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Process\Process;
 
@@ -74,6 +75,39 @@ class MultiProcess
 
         $this->queue[] = [$pendingProcess, $name];
         return $this;
+    }
+
+    /**
+     * 添加 command
+     * @param string $command
+     * @param array $args
+     * @param string|null $name
+     * @return $this
+     */
+    public function addCommand(string $command, array $args = [], string $name = null): self
+    {
+        return $this->add(new Process(['php', __DIR__ . '/../bin/console', $command, ...$args]), $name);
+    }
+
+    /**
+     * 添加动态调用
+     * @param array $call
+     * @param array $args
+     * @param string|null $name
+     * @return $this
+     */
+    public function addDynamicCall(array $call, array $args = [], string $name = null): self
+    {
+        [$class, $staticMethod] = $call;
+        if (!is_string($class) || !class_exists($class)) {
+            throw new \InvalidArgumentException('$call 第一个参数必须是 class 名');
+        }
+
+        return $this->addCommand(DynamicCallCommand::COMMAND_NAME, [
+            $class,
+            "--method={$staticMethod}",
+            ...array_map(fn($value) => "--arg=" . $value, $args)
+        ], $name);
     }
 
     /**
