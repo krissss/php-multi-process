@@ -16,12 +16,12 @@ class MultiProcess
      * 最大进程数，为 0 时不限制
      * @var int
      */
-    protected $maxProcessCount = 0;
+    protected $maxProcessCount = 20;
     /**
      * 检查最大进程数的间隔时间（毫秒）
      * @var int
      */
-    protected $checkWaitMicroseconds = 10;
+    protected $checkWaitMicroseconds = 300;
 
     /**
      * @var array|PendingProcess[]|Process[]
@@ -97,11 +97,15 @@ class MultiProcess
     public function wait(): MultiProcessResults
     {
         foreach ($this->queue as $item) {
+            while (!$this->canStartNextProcess()) {
+                usleep($this->checkWaitMicroseconds);
+            }
+
             $this->startOneProcess(...$item);
         }
+        unset($this->queue);
 
         $this->waitAllProcess();
-        unset($this->queue);
 
         return new MultiProcessResults($this->results);
     }
@@ -114,12 +118,9 @@ class MultiProcess
      */
     protected function startOneProcess(Process $process, string $name = null): void
     {
-        while (!$this->canStartNextProcess()) {
-            usleep($this->checkWaitMicroseconds);
-        }
-
         $startCallback = $process instanceof PendingProcess ? $process->getStartCallback() : null;
         $process->start($startCallback);
+
         $pid = $process->getPid();
         $name = $name ?? ('pid_' . $pid);
         $this->inProcess[$name] = $process;
@@ -132,22 +133,26 @@ class MultiProcess
      */
     protected function canStartNextProcess(): bool
     {
-        if ($this->maxProcessCount <= 0 || count($this->inProcess) < $this->maxProcessCount) {
+        if (
+            $this->maxProcessCount <= 0 // 不限制最大执行进程数
+            || count($this->inProcess) < $this->maxProcessCount // 当前在执行中的进程数未达到最大值
+        ) {
             return true;
         }
 
-        $can = false;
+        // 检查当前执行中的进程是否有结束的
+        $hasFinished = false;
         foreach ($this->inProcess as $name => $process) {
-            if ($this->checkAndReleaseOverProcess($name, $process)) {
-                $can = true;
+            if ($this->checkAndUnsetFinishedProcess($name, $process)) {
+                $hasFinished = true;
             }
         }
-
-        if (!$can) {
-            $this->log('too many process, wait ...', 'debug');
+        if ($hasFinished) {
+            return $this->canStartNextProcess();
         }
 
-        return $can;
+        $this->log('too many process, wait ...', 'debug');
+        return false;
     }
 
     /**
@@ -160,7 +165,7 @@ class MultiProcess
             return;
         }
         foreach ($this->inProcess as $name => $process) {
-            $this->checkAndReleaseOverProcess($name, $process);
+            $this->checkAndUnsetFinishedProcess($name, $process);
         }
 
         usleep($this->checkWaitMicroseconds);
@@ -174,13 +179,13 @@ class MultiProcess
      * @param Process $process
      * @return bool
      */
-    protected function checkAndReleaseOverProcess(string $name, Process $process): bool
+    protected function checkAndUnsetFinishedProcess(string $name, Process $process): bool
     {
         if ($process->isRunning()) {
             return false;
         }
 
-        $this->log("{$name} over", 'debug');
+        $this->log("{$name} finished", 'debug');
 
         $this->results[$name] = $process;
         unset($this->inProcess[$name]);
