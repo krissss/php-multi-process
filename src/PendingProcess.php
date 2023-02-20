@@ -186,7 +186,7 @@ class PendingProcess
      * @param bool $quietly
      * @return PendingProcess
      */
-    public function setQuietly(bool $quietly): PendingProcess
+    public function setQuietly(bool $quietly = true): PendingProcess
     {
         $this->quietly = $quietly;
         return $this;

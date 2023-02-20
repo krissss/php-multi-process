@@ -1,6 +1,6 @@
 <?php
 
-namespace Kriss\MultiProcessTests;
+namespace Kriss\MultiProcessTests\Fixtures;
 
 use Kriss\MultiProcess\SymfonyConsole\Commands\TaskCallCommand;
 use Symfony\Component\Console\Output\OutputInterface;

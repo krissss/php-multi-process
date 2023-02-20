@@ -19,5 +19,5 @@ if (!$autoloader) {
 require_once $autoloader;
 
 $app = new Application();
-$app->add(new \Kriss\MultiProcessTests\MyTaskCallCommand());
+$app->add(new \Kriss\MultiProcessTests\Fixtures\MyTaskCallCommand());
 $app->run();

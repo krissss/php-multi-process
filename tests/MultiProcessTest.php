@@ -1,129 +1,251 @@
 <?php
 
+namespace Kriss\MultiProcessTests;
+
 use Kriss\MultiProcess\MultiProcess;
 use Kriss\MultiProcess\PendingProcess;
 use Kriss\MultiProcess\PendingTaskProcess;
 use Kriss\MultiProcess\SymfonyConsole\Helper\TaskHelper;
-use Kriss\MultiProcessTests\SymfonyConsoleTestClass;
+use Kriss\MultiProcessTests\Fixtures\CallbackClass;
+use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Process\Process;
 
-it('test MultiProcess async', function () {
-    $startTime = microtime(true);
+class MultiProcessTest extends TestCase
+{
+    protected function tearDown(): void
+    {
+        MultiProcess::$globalMaxProcessCount = 10;
+        MultiProcess::$defaultLogger = null;
+        MultiProcess::$globalCheckWaitMicroseconds = 300;
 
-    MultiProcess::create()
-        ->add('sleep 1')
-        ->add('sleep 1')
-        ->add('sleep 1')
-        ->add('sleep 1')
-        ->wait();
-
-    $useTime = round(microtime(true) - $startTime, 6);
-    $this->assertGreaterThan(1, $useTime);
-    $this->assertLessThan(4, $useTime);
-});
-
-it('test MultiProcess config', function () {
-    $startTime = microtime(true);
-
-    MultiProcess::create([
-        'logger' => new \Psr\Log\NullLogger(),
-        'maxProcessCount' => 2,
-        'checkWaitMicroseconds' => 0,
-    ])
-        ->add('sleep 1')
-        ->add(Process::fromShellCommandline('sleep 1'))
-        ->add(PendingProcess::createFromCommand(['sleep', 1]))
-        ->wait();
-
-    $useTime = round(microtime(true) - $startTime, 6);
-    $this->assertGreaterThan(2, $useTime);
-    $this->assertLessThan(4, $useTime);
-});
-
-it('test MultiProcess add error', function () {
-    try {
-        MultiProcess::create()
-            ->add(new class {})
-            ->wait();
-    } catch (Throwable $e) {
-        $this->assertTrue($e instanceof InvalidArgumentException);
+        PendingTaskProcess::$globalConsoleFile = null;
     }
-});
 
-it('test MultiProcess addMulti', function () {
-    $results = MultiProcess::create()
-        ->addMulti([
-            'p1' => 'hostname',
-            'p2' => PendingProcess::createFromCommand('hostname'),
-        ])
-        ->wait();
+    public function testAsync()
+    {
+        $startTime = microtime(true);
 
-    $results2 = MultiProcess::create()
-        ->add('hostname', 'p1')
-        ->add('hostname', 'p2')
-        ->wait();
+        MultiProcess::create()
+            ->add('sleep 1')
+            ->add('sleep 1')
+            ->add('sleep 1')
+            ->add('sleep 1')
+            ->wait();
 
-    $this->assertEquals($results->getOutputs(), $results2->getOutputs());
-});
+        $useTime = round(microtime(true) - $startTime, 6);
+        $this->assertGreaterThan(1, $useTime);
+        $this->assertLessThan(4, $useTime);
+    }
 
-it('test PendingProcess', function () {
-    $outputs = [];
-    MultiProcess::create()
-        ->add(
-            PendingProcess::createFromCommand('hostname')
-                ->setStartCallback(function ($type, $buffer) use (&$outputs) {
-                    $outputs = [$type, $buffer];
-                })
-        )
-        ->wait();
+    public function testDifferentAdd()
+    {
+        $results = MultiProcess::create()
+            ->add('hostname')
+            ->add(Process::fromShellCommandline('hostname'), 'p2')
+            ->add(PendingProcess::createFromCommand('hostname'), 'p3')
+            ->add([Fixtures\CallbackClass::class, 'getHostname'], 'p4')
+            ->add(fn() => Fixtures\CallbackClass::getHostname(), 'p5')
+            ->addMulti([
+                'p6' => 'hostname',
+                'p7' => fn() => CallbackClass::getHostname(),
+            ])
+            ->wait();
 
-    $this->assertEquals(Process::OUT, $outputs[0]);
-    $this->assertEquals(gethostname(), trim($outputs[1]));
-});
+        $hostname = gethostname();
+        $this->assertEquals(array_fill(0, 7, $hostname), array_values($results->getOutputs()));
+        $this->assertEquals('p3', array_keys($results->getProcesses())[2]);
+        $this->assertEquals('p7', array_keys($results->getProcesses())[6]);
+        $this->assertStringStartsWith('pid_', array_keys($results->getProcesses())[0]);
 
-it('test MultiProcessResult', function () {
-    $results = MultiProcess::create()
-        ->add('hostname')
-        ->add('hostname', 'p1')
-        ->add(PendingProcess::createFromCommand('hostname'), 'p2')
-        ->wait();
+        try {
+            MultiProcess::create()
+                ->add(new \stdClass())
+                ->wait();
+        } catch (\Throwable $e) {
+            $this->assertStringContainsString('pendingProcess type error', $e->getMessage());
+        }
+    }
 
-    $hostname = gethostname();
-    $this->assertIsArray($results->getProcesses());
-    $this->assertInstanceOf(Process::class, $results->getProcess('p1'));
-    $this->assertInstanceOf(Process::class, $results->getProcess('p2'));
-    $this->assertEquals(array_fill(0, 3, $hostname), array_values($results->getOutputs()));
-    $this->assertEquals($hostname, $results->getOutput('p1'));
-    $this->assertEquals('', $results->getOutput('not_exist_process_name'));
-});
+    public function testResult()
+    {
+        $results = MultiProcess::create()
+            ->add('hostname', 'p1')
+            ->add(function () {
+                throw new \Exception('存在异常');
+            }, 'p2')
+            ->wait();
 
-it('test MultiProcess Task', function () {
-    // 问题：不能用于 覆盖 测试
-    // pest 环境下无法正确序列化 Closure，所以需要放到正确的 class
-    $results = SymfonyConsoleTestClass::makeResults();
+        $hostname = gethostname();
 
-    $this->assertEquals('ok', $results->getOutput('p1'));
-    $this->assertEquals('ok', $results->getOutput('p2'));
-    $this->assertEquals('new ok', $results->getOutput('p3'));
-    $this->assertEquals('user', $results->getOutput('p4'));
-    $this->assertEquals('user', $results->getOutput('p5'));
+        $this->assertInstanceOf(Process::class, $results->getProcess('p1'));
+        $this->assertCount(2, $results->getProcesses());
+        $this->assertCount(2, $results->getOutputs());
+        $this->assertCount(2, $results->getErrorOutputs());
+        $this->assertEquals($hostname, $results->getOutput('p1'));
+        $this->assertEquals($hostname . PHP_EOL, $results->getProcess('p1')->getOutput());
 
-    $result = $results->getOutput('p6');
-    $this->assertEquals([1, 2], TaskHelper::decode($result));
+        $this->assertTrue($results->getIsSuccess('p1'));
+        $this->assertFalse($results->getIsSuccess('p2'));
+        $this->assertFalse($results->getIsAllSuccess());
 
-    $result = $results->getOutput('p7');
-    $obj = TaskHelper::decode($result);
-    $this->assertInstanceOf(SymfonyConsoleTestClass::class, $obj);
-    /** @var SymfonyConsoleTestClass $obj */
-    $this->assertEquals('user', $obj->getUser());
+        $this->assertEquals('', $results->getOutput('notExist'));
+        $this->assertEquals('', $results->getErrorOutput('notExist'));
+        $this->assertEquals(null, $results->getProcess('notExist'));
+        $this->assertEquals(false, $results->getIsSuccess('notExist', false));
 
-    $this->assertEquals('ok', $results->getOutput('p8'));
-});
+        $this->assertStringContainsString('存在异常', $results->getErrorOutput('p2'));
+        $this->assertEquals(['p2'], $results->getFailedNames());
 
-it('test PendingTaskProcess', function () {
-    PendingTaskProcess::$globalConsoleFile = __DIR__ . '/src/myConsole.php';
-    $results = SymfonyConsoleTestClass::makeForPendingTaskProcess();
+        $results = MultiProcess::create()->wait();
+        $this->assertTrue($results->getIsAllSuccess());
+    }
 
-    $output = $results->getOutput('p1');
-    $this->assertEquals('my task' . PHP_EOL . 'ok', $output);
-});
+    public function testConfigMaxProcessCount()
+    {
+        MultiProcess::$globalMaxProcessCount = 2;
+
+        $startTime = microtime(true);
+        MultiProcess::create()
+            ->addMulti([
+                'sleep 1',
+                'sleep 1',
+                'sleep 1',
+            ])
+            ->wait();
+        $useTime = round(microtime(true) - $startTime, 6);
+        $this->assertGreaterThan(2, $useTime);
+        $this->assertLessThan(4, $useTime);
+
+        $startTime = microtime(true);
+        MultiProcess::$globalMaxProcessCount = 4;
+        MultiProcess::create(['maxProcessCount' => 2])
+            ->addMulti([
+                'sleep 1',
+                'sleep 1',
+                'sleep 1',
+            ])
+            ->wait();
+        $useTime = round(microtime(true) - $startTime, 6);
+        $this->assertGreaterThan(2, $useTime);
+        $this->assertLessThan(4, $useTime);
+    }
+
+    public function testConfigLogger()
+    {
+        MultiProcess::$defaultLogger = new NullLogger();
+
+        $results = MultiProcess::create()
+            ->add('hostname', 'p1')
+            ->wait();
+
+        $this->assertEquals(gethostname(), $results->getOutput('p1'));
+    }
+
+    public function testPendingProcess()
+    {
+        $outputs = [];
+        MultiProcess::create()
+            ->add(
+                PendingProcess::createFromCommand('hostname')
+                    ->setStartCallback(function ($type, $buffer) use (&$outputs) {
+                        $outputs = [$type, $buffer];
+                    })
+            )
+            ->wait();
+
+        $this->assertEquals(Process::OUT, $outputs[0]);
+        $this->assertEquals(gethostname(), trim($outputs[1]));
+
+        $pendingProcess = PendingProcess::createFromCommand('hostname')
+            ->setTimeout(10)
+            ->setIdleTimeout(300)
+            ->setInput('my-input')
+            ->setCommand('hostname2')
+            ->setCwd(__DIR__)
+            ->setEnv(['env=1'])
+            ->setOptions(['blocking_pipes' => 1]);
+        $this->assertEquals(10, $pendingProcess->getTimeout());
+        $this->assertEquals(300, $pendingProcess->getIdleTimeout());
+        $this->assertEquals('my-input', $pendingProcess->getInput());
+        $this->assertEquals('hostname2', $pendingProcess->getCommand());
+        $this->assertEquals(__DIR__, $pendingProcess->getCwd());
+        $this->assertEquals(['env=1'], $pendingProcess->getEnv());
+        $this->assertEquals(['blocking_pipes' => 1], $pendingProcess->getOptions());
+
+        $process = $pendingProcess->toSymfonyProcess();
+        $this->assertEquals(10, $process->getTimeout());
+        $this->assertEquals(300, $process->getIdleTimeout());
+        $this->assertEquals('my-input', $process->getInput());
+        $this->assertEquals('hostname2', $process->getCommandLine());
+        $this->assertEquals(__DIR__, $process->getWorkingDirectory());
+        $this->assertEquals(['env=1'], $process->getEnv());
+
+        // Output cannot be disabled while an idle timeout is set.
+        $pendingProcess = PendingProcess::createFromCommand('hostname')
+            ->setQuietly();
+        $this->assertEquals(true, $pendingProcess->isQuietly());
+        $process = $pendingProcess->toSymfonyProcess();
+        $this->assertEquals(true, $process->isOutputDisabled());
+    }
+
+    public function testTask()
+    {
+        $hostname = gethostname();
+        $self = new CallbackClass();
+        $results = MultiProcess::create()
+            // 数组形式的静态调用
+            ->add([CallbackClass::class, 'getHostname'], 'p1')
+            // Closure
+            ->add(fn() => CallbackClass::getHostname(), 'p2')
+            // Closure 支持 use
+            ->add(fn() => CallbackClass::getValue($hostname), 'p3')
+            // 数组形式的对象调用
+            ->add([$self, 'getHostname2'], 'p4')
+            // Closure 支持 $this
+            ->add(fn() => $self->getHostname2(), 'p5')
+            // 返回数组形式
+            ->add(fn() => [1, 2], 'p6')
+            // 返回对象
+            ->add(fn() => $self, 'p7')
+            // 使用 PendingTaskProcess
+            ->add(PendingTaskProcess::createFromTask(fn() => CallbackClass::getHostname()), 'p8')
+            ->wait();
+
+        $outputs = array_values($results->getOutputs());
+        $this->assertEquals(array_fill(0, 5, $hostname), array_splice($outputs, 0, 5));
+        $this->assertEquals([1, 2], TaskHelper::decode($results->getOutput('p6')));
+        $this->assertInstanceOf(CallbackClass::class, TaskHelper::decode($results->getOutput('p7')));
+        /** @var CallbackClass $obj */
+        $obj = TaskHelper::decode($results->getOutput('p7'));
+        $this->assertInstanceOf(CallbackClass::class, $obj);
+        $this->assertEquals($hostname, $obj->getHostname2());
+        $this->assertEquals($hostname, $results->getOutput('p8'));
+    }
+
+    public function testConfigConsoleFile()
+    {
+        PendingTaskProcess::$globalConsoleFile = __DIR__ . '/Fixtures/my-console';
+
+        $results = MultiProcess::create()
+            ->add(fn() => 'ok', 'p1')
+            ->wait();
+
+        $output = $results->getOutput('p1');
+        $this->assertEquals('my task' . PHP_EOL . 'ok', $output);
+
+        PendingTaskProcess::$globalConsoleFile = 'not-exist';
+        $results = MultiProcess::create()
+            ->add(
+                PendingTaskProcess::createFromTask(fn() => 'ok')
+                    ->setConsoleFile(__DIR__ . '/Fixtures/my-console'),
+                'p1'
+            )
+            ->wait();
+
+        $output = $results->getOutput('p1');
+        $this->assertEquals('my task' . PHP_EOL . 'ok', $output);
+
+        $this->assertEquals('not-exist', PendingTaskProcess::createFromTask(fn() => 'ok')->getConsoleFile());
+    }
+}
