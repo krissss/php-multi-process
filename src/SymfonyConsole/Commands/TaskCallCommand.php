@@ -2,6 +2,7 @@
 
 namespace Kriss\MultiProcess\SymfonyConsole\Commands;
 
+use Closure;
 use Kriss\MultiProcess\SymfonyConsole\Helper\TaskHelper;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -12,8 +13,12 @@ class TaskCallCommand extends Command
 {
     public const COMMAND_NAME = 'multi-process:task-call';
 
-    protected static $defaultName = self::COMMAND_NAME;
     protected static $defaultDescription = '多进程动态调用入口';
+
+    public function __construct()
+    {
+        parent::__construct(static::COMMAND_NAME);
+    }
 
     protected function configure()
     {
@@ -22,11 +27,32 @@ class TaskCallCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $task = $input->getArgument('task');
-        $task = TaskHelper::decode($task);
+        $task = $this->getTask($input);
 
         $result = call_user_func($task);
 
+        $this->solveOutput($result, $output);
+
+        return 0;
+    }
+
+    /**
+     * @param InputInterface $input
+     * @return Closure|array
+     */
+    protected function getTask(InputInterface $input)
+    {
+        $task = $input->getArgument('task');
+        return TaskHelper::decode($task);
+    }
+
+    /**
+     * @param mixed $result
+     * @param OutputInterface $output
+     * @return void
+     */
+    public function solveOutput($result, OutputInterface $output): void
+    {
         if (is_string($result)) {
             $output->writeln($result);
         } elseif (is_null($result)) {
@@ -34,7 +60,5 @@ class TaskCallCommand extends Command
         } else {
             $output->writeln(TaskHelper::encode($result));
         }
-
-        return 0;
     }
 }

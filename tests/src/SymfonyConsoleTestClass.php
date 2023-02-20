@@ -35,6 +35,13 @@ class SymfonyConsoleTestClass
             ->wait();
     }
 
+    public static function makeForPendingTaskProcess()
+    {
+        return MultiProcess::create()
+            ->add(fn() => 'ok', 'p1')
+            ->wait();
+    }
+
     public static function handle($result = null)
     {
         return $result ?: 'ok';

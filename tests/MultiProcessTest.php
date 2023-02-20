@@ -2,6 +2,7 @@
 
 use Kriss\MultiProcess\MultiProcess;
 use Kriss\MultiProcess\PendingProcess;
+use Kriss\MultiProcess\PendingTaskProcess;
 use Kriss\MultiProcess\SymfonyConsole\Helper\TaskHelper;
 use Kriss\MultiProcessTests\SymfonyConsoleTestClass;
 use Symfony\Component\Process\Process;
@@ -117,4 +118,12 @@ it('test MultiProcess Task', function () {
     $this->assertEquals('user', $obj->getUser());
 
     $this->assertEquals('ok', $results->getOutput('p8'));
+});
+
+it('test PendingTaskProcess', function () {
+    PendingTaskProcess::setGlobalConsoleFile(__DIR__ . '/src/myConsole.php');
+    $results = SymfonyConsoleTestClass::makeForPendingTaskProcess();
+
+    $output = $results->getOutput('p1');
+    $this->assertEquals('my task' . PHP_EOL . 'ok', $output);
 });

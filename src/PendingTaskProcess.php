@@ -9,8 +9,25 @@ use Symfony\Component\Process\Process;
 
 class PendingTaskProcess extends PendingProcess
 {
+    protected static ?string $globalConsoleFile = null;
+
+    protected string $consoleFile;
     /** @var array|Closure */
     protected $task;
+
+    public function __construct()
+    {
+        $this->consoleFile = static::$globalConsoleFile ?: dirname(__DIR__) . '/bin/console';
+    }
+
+    /**
+     * @param string $globalConsoleFile
+     * @return void
+     */
+    public static function setGlobalConsoleFile(string $globalConsoleFile): void
+    {
+        static::$globalConsoleFile = $globalConsoleFile;
+    }
 
     /**
      * @param array|Closure $task
@@ -26,9 +43,27 @@ class PendingTaskProcess extends PendingProcess
      */
     public function toSymfonyProcess(): Process
     {
-        $this->setCommand([PHP_BINARY, dirname(__DIR__) . '/bin/console', TaskCallCommand::COMMAND_NAME, TaskHelper::encode($this->getTask())]);
+        $this->setCommand([PHP_BINARY, $this->consoleFile, TaskCallCommand::COMMAND_NAME, TaskHelper::encode($this->getTask())]);
 
         return parent::toSymfonyProcess();
+    }
+
+    /**
+     * @return string
+     */
+    public function getConsoleFile(): string
+    {
+        return $this->consoleFile;
+    }
+
+    /**
+     * @param string $consoleFile
+     * @return PendingTaskProcess
+     */
+    public function setConsoleFile(string $consoleFile): PendingTaskProcess
+    {
+        $this->consoleFile = $consoleFile;
+        return $this;
     }
 
     /**
