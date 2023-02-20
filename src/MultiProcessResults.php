@@ -42,4 +42,50 @@ class MultiProcessResults
         }
         return '';
     }
+
+    public function getErrorOutputs(): array
+    {
+        $data = [];
+        foreach ($this->getProcesses() as $name => $process) {
+            $data[$name] = trim($process->getErrorOutput());
+        }
+        return $data;
+    }
+
+    public function getErrorOutput(string $name): string
+    {
+        if ($process = $this->getProcess($name)) {
+            return trim($process->getErrorOutput());
+        }
+        return '';
+    }
+
+    public function getIsAllSuccess(): bool
+    {
+        foreach ($this->getProcesses() as $process) {
+            if (!$process->isSuccessful()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public function getIsSuccess(string $name, bool $default = true): bool
+    {
+        if ($process = $this->getProcess($name)) {
+            return $process->isSuccessful();
+        }
+        return $default;
+    }
+
+    public function getFailedNames(): array
+    {
+        $data = [];
+        foreach ($this->getProcesses() as $name => $process) {
+            if (!$process->isSuccessful()) {
+                $data[] = $name;
+            }
+        }
+        return $data;
+    }
 }
