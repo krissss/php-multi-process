@@ -26,7 +26,7 @@ class PendingTaskProcess extends PendingProcess
      */
     public function toSymfonyProcess(): Process
     {
-        $this->setCommand(['php', __DIR__ . '/../bin/console', TaskCallCommand::COMMAND_NAME, TaskHelper::encode($this->getTask())]);
+        $this->setCommand([PHP_BINARY, dirname(__DIR__) . '/bin/console', TaskCallCommand::COMMAND_NAME, TaskHelper::encode($this->getTask())]);
 
         return parent::toSymfonyProcess();
     }

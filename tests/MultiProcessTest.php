@@ -97,6 +97,7 @@ it('test MultiProcessResult', function () {
 });
 
 it('test MultiProcess Task', function () {
+    // 问题：不能用于 覆盖 测试
     // pest 环境下无法正确序列化 Closure，所以需要放到正确的 class
     $results = SymfonyConsoleTestClass::makeResults();
 
