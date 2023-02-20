@@ -121,7 +121,7 @@ it('test MultiProcess Task', function () {
 });
 
 it('test PendingTaskProcess', function () {
-    PendingTaskProcess::setGlobalConsoleFile(__DIR__ . '/src/myConsole.php');
+    PendingTaskProcess::$globalConsoleFile = __DIR__ . '/src/myConsole.php';
     $results = SymfonyConsoleTestClass::makeForPendingTaskProcess();
 
     $output = $results->getOutput('p1');

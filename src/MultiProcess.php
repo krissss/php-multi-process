@@ -8,7 +8,9 @@ use Symfony\Component\Process\Process;
 
 class MultiProcess
 {
-    private const DEFAULT_SLEEP_TIME = 300;
+    public static int $globalCheckWaitMicroseconds = 300;
+    public static int $globalMaxProcessCount = 10;
+    public static ?LoggerInterface $defaultLogger = null;
 
     /**
      * 日志
@@ -17,14 +19,14 @@ class MultiProcess
     protected ?LoggerInterface $logger = null;
     /**
      * 最大进程数，为 0 时不限制
-     * @var int
+     * @var int|null
      */
-    protected int $maxProcessCount = 20;
+    protected ?int $maxProcessCount = null;
     /**
      * 检查最大进程数的间隔时间（毫秒）
-     * @var int
+     * @var int|null
      */
-    protected int $checkWaitMicroseconds = self::DEFAULT_SLEEP_TIME;
+    protected ?int $checkWaitMicroseconds = null;
 
     /**
      * @var array|Process[]
@@ -44,9 +46,15 @@ class MultiProcess
         foreach ($config as $key => $value) {
             $this->{$key} = $value;
         }
-        if ($this->checkWaitMicroseconds <= 0) {
+        if ($this->logger === null && static::$defaultLogger) {
+            $this->logger = static::$defaultLogger;
+        }
+        if ($this->checkWaitMicroseconds === null || $this->checkWaitMicroseconds <= 0) {
             // 不能不 sleep，会导致死循环(fpm下)，原因目前未知
-            $this->checkWaitMicroseconds = self::DEFAULT_SLEEP_TIME;
+            $this->checkWaitMicroseconds = static::$globalCheckWaitMicroseconds;
+        }
+        if ($this->maxProcessCount === null && static::$globalMaxProcessCount) {
+            $this->maxProcessCount = static::$globalMaxProcessCount;
         }
     }
 

@@ -9,7 +9,7 @@ use Symfony\Component\Process\Process;
 
 class PendingTaskProcess extends PendingProcess
 {
-    protected static ?string $globalConsoleFile = null;
+    public static ?string $globalConsoleFile = null;
 
     protected string $consoleFile;
     /** @var array|Closure */
@@ -18,15 +18,6 @@ class PendingTaskProcess extends PendingProcess
     public function __construct()
     {
         $this->consoleFile = static::$globalConsoleFile ?: dirname(__DIR__) . '/bin/console';
-    }
-
-    /**
-     * @param string $globalConsoleFile
-     * @return void
-     */
-    public static function setGlobalConsoleFile(string $globalConsoleFile): void
-    {
-        static::$globalConsoleFile = $globalConsoleFile;
     }
 
     /**
