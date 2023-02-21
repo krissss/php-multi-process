@@ -9,7 +9,7 @@ class CallbackClass
         return gethostname();
     }
 
-    public static function getValue(string $value)
+    public static function getValue($value)
     {
         return $value;
     }

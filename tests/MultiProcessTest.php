@@ -63,7 +63,7 @@ class MultiProcessTest extends TestCase
                 ->add(new \stdClass())
                 ->wait();
         } catch (\Throwable $e) {
-            $this->assertStringContainsString('pendingProcess type error', $e->getMessage());
+            $this->assertStringContainsString('$pendingProcess type error', $e->getMessage());
         }
     }
 

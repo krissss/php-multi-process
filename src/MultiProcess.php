@@ -82,10 +82,7 @@ class MultiProcess
         if (is_array($pendingProcess) || $pendingProcess instanceof Closure) {
             $pendingProcess = PendingTaskProcess::createFromTask($pendingProcess);
         }
-        if (!(
-            $pendingProcess instanceof Process
-            || $pendingProcess instanceof PendingProcess
-        )) {
+        if (!$pendingProcess instanceof Process && !$pendingProcess instanceof PendingProcess) {
             throw new \InvalidArgumentException('$pendingProcess type error');
         }
 
