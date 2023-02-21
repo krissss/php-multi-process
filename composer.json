@@ -17,8 +17,10 @@
     "symfony/process": "^5|^6"
   },
   "require-dev": {
+    "illuminate/support": "^8.83",
     "phpunit/phpunit": "^9.6",
-    "psr/log": "^1.1"
+    "psr/log": "^1.1",
+    "workerman/webman-framework": "^1.5"
   },
   "config": {
     "sort-packages": true
@@ -31,6 +33,13 @@
   "autoload-dev": {
     "psr-4": {
       "Kriss\\MultiProcessTests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Kriss\\MultiProcess\\Integrations\\Laravel\\MultiProcessServiceProvider"
+      ]
     }
   }
 }
