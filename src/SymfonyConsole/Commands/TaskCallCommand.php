@@ -13,7 +13,7 @@ class TaskCallCommand extends Command
 {
     public const COMMAND_NAME = 'multi-process:task-call';
 
-    protected static $defaultDescription = '多进程动态调用入口';
+    protected static $defaultDescription = 'MultiProcess Task Call Entry';
 
     public function __construct()
     {

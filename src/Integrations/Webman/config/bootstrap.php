@@ -1,7 +1,7 @@
 <?php
 
-use WebmanTech\Debugbar\Bootstrap\LaravelQuery;
-use WebmanTech\Debugbar\Bootstrap\LaravelRedisExec;
+use Kriss\MultiProcess\Integrations\Webman\RegisterWebmanConsoleBootstrap;
 
 return [
+    RegisterWebmanConsoleBootstrap::class,
 ];
