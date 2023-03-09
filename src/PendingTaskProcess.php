@@ -5,19 +5,30 @@ namespace Kriss\MultiProcess;
 use Closure;
 use Kriss\MultiProcess\SymfonyConsole\Commands\TaskCallCommand;
 use Kriss\MultiProcess\SymfonyConsole\Helper\TaskHelper;
+use Symfony\Component\Process\PhpExecutableFinder;
 use Symfony\Component\Process\Process;
 
 class PendingTaskProcess extends PendingProcess
 {
+    public static ?string $globalPhpBinary = null;
     public static ?string $globalConsoleFile = null;
 
+    protected string $phpBinary;
     protected string $consoleFile;
     /** @var array|Closure */
     protected $task;
 
     public function __construct()
     {
-        $this->consoleFile = static::$globalConsoleFile ?: dirname(__DIR__) . '/bin/console';
+        if (!static::$globalPhpBinary) {
+            static::$globalPhpBinary = (new PhpExecutableFinder())->find() ?: 'php';
+        }
+        $this->phpBinary = static::$globalPhpBinary;
+
+        if (!static::$globalConsoleFile) {
+            static::$globalConsoleFile = dirname(__DIR__) . '/bin/console';
+        }
+        $this->consoleFile = static::$globalConsoleFile;
     }
 
     /**
@@ -34,9 +45,27 @@ class PendingTaskProcess extends PendingProcess
      */
     public function toSymfonyProcess(): Process
     {
-        $this->setCommand([PHP_BINARY, $this->consoleFile, TaskCallCommand::COMMAND_NAME, TaskHelper::encode($this->getTask())]);
+        $this->setCommand([$this->phpBinary, $this->consoleFile, TaskCallCommand::COMMAND_NAME, TaskHelper::encode($this->getTask())]);
 
         return parent::toSymfonyProcess();
+    }
+
+    /**
+     * @return string
+     */
+    public function getPhpBinary(): string
+    {
+        return $this->phpBinary;
+    }
+
+    /**
+     * @param string $phpBinary
+     * @return PendingTaskProcess
+     */
+    public function setPhpBinary(string $phpBinary): PendingTaskProcess
+    {
+        $this->phpBinary = $phpBinary;
+        return $this;
     }
 
     /**
