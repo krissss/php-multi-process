@@ -9,6 +9,7 @@ use Kriss\MultiProcess\SymfonyConsole\Helper\TaskHelper;
 use Kriss\MultiProcessTests\Fixtures\CallbackClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Process\PhpExecutableFinder;
 use Symfony\Component\Process\Process;
 
 class MultiProcessTest extends TestCase
@@ -221,6 +222,22 @@ class MultiProcessTest extends TestCase
         $this->assertInstanceOf(CallbackClass::class, $obj);
         $this->assertEquals($hostname, $obj->getHostname2());
         $this->assertEquals($hostname, $results->getOutput('p8'));
+    }
+
+    public function testConfigPhpBinary()
+    {
+        $php = PendingTaskProcess::createFromTask(fn() => 'ok')->getPhpBinary();
+        $this->assertEquals((new PhpExecutableFinder())->find() ?: 'php', $php);
+
+        PendingTaskProcess::$globalPhpBinary = 'myPHP';
+        $php = PendingTaskProcess::createFromTask(fn() => 'ok')->getPhpBinary();
+        $this->assertEquals('myPHP', $php);
+
+        $php = PendingTaskProcess::createFromTask(fn() => 'ok')->getPhpBinary();
+        $this->assertEquals('myPHP', $php);
+
+        $php = PendingTaskProcess::createFromTask(fn() => 'ok')->setPhpBinary('myNextPHP')->getPhpBinary();
+        $this->assertEquals('myNextPHP', $php);
     }
 
     public function testConfigConsoleFile()
