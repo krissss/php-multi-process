@@ -14,6 +14,8 @@ class RegisterWebmanConsoleBootstrap implements Bootstrap
     {
         $appDir = dirname(__DIR__, 6);
         $existingArtisanFiles = array_filter([
+            $appDir.'/artisan',
+            __DIR__.'/../artisan',
             $appDir.'/webman',
             __DIR__.'/../webman',
         ], function (string $path) {
