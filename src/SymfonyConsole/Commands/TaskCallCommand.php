@@ -20,12 +20,17 @@ class TaskCallCommand extends Command
         parent::__construct(static::COMMAND_NAME);
     }
 
+    public static function getDefaultDescription(): ?string
+    {
+        return self::$defaultDescription;
+    }
+
     protected function configure()
     {
         $this->addArgument('task', InputArgument::REQUIRED, '任务');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $task = $this->getTask($input);
 
