@@ -7,6 +7,7 @@ use Kriss\MultiProcess\PendingProcess;
 use Kriss\MultiProcess\PendingTaskProcess;
 use Kriss\MultiProcess\SymfonyConsole\Helper\TaskHelper;
 use Kriss\MultiProcessTests\Fixtures\CallbackClass;
+use Kriss\MultiProcessTests\Fixtures\MyMultiProcess;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Process\PhpExecutableFinder;
@@ -16,16 +17,19 @@ class MultiProcessTest extends TestCase
 {
     protected function tearDown(): void
     {
-        MultiProcess::$globalMaxProcessCount = 10;
+        MultiProcess::$globalMaxProcessCount = -1;
         MultiProcess::$defaultLogger = null;
         MultiProcess::$globalCheckWaitMicroseconds = 300;
 
         PendingTaskProcess::$globalConsoleFile = null;
+        PendingTaskProcess::$globalPhpBinary = null;
     }
 
     public function testAsync()
     {
         $startTime = microtime(true);
+
+        MultiProcess::$globalMaxProcessCount = 5;
 
         MultiProcess::create()
             ->add('sleep 1')
@@ -264,5 +268,21 @@ class MultiProcessTest extends TestCase
         $this->assertEquals('my task' . PHP_EOL . 'ok', $output);
 
         $this->assertEquals('not-exist', PendingTaskProcess::createFromTask(fn() => 'ok')->getConsoleFile());
+    }
+
+    public function testAutoMaxProcessCount()
+    {
+        MyMultiProcess::$globalMaxProcessCount = -1;
+
+        $mp = MyMultiProcess::create();
+        try {
+            $count = (int)shell_exec('nproc');
+        } catch (\Throwable $e) {
+        }
+        if ($count <= 0) {
+            $count = 10;
+        }
+
+        $this->assertEquals($count, $mp->getMaxProcessCount());
     }
 }

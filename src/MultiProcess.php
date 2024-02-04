@@ -9,7 +9,7 @@ use Symfony\Component\Process\Process;
 class MultiProcess
 {
     public static int $globalCheckWaitMicroseconds = 300;
-    public static int $globalMaxProcessCount = 10;
+    public static int $globalMaxProcessCount = -1; // -1 时在 cli 下取当前系统的cpu核心数，取不到取10
     public static ?LoggerInterface $defaultLogger = null;
 
     /**
@@ -55,6 +55,19 @@ class MultiProcess
         }
         if ($this->maxProcessCount === null && static::$globalMaxProcessCount) {
             $this->maxProcessCount = static::$globalMaxProcessCount;
+        }
+        if ($this->maxProcessCount === -1) {
+            if (PHP_SAPI === 'cli') {
+                try {
+                    $this->maxProcessCount = (int)shell_exec('nproc');
+                } catch (\Throwable $e) {
+                    $this->log('get cpu core error: ' . $e->getMessage(), 'warning');
+                }
+            }
+            if ($this->maxProcessCount <= 0) {
+                $this->maxProcessCount = 10;
+            }
+            $this->log('use max process count: ' . $this->maxProcessCount, 'debug');
         }
     }
 
