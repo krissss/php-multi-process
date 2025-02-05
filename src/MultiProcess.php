@@ -124,8 +124,12 @@ class MultiProcess
     public function wait(): MultiProcessResults
     {
         foreach ($this->queue as $item) {
-            while (!$this->canStartNextProcess()) {
-                usleep($this->checkWaitMicroseconds);
+            while (true) {
+                if (!$this->canStartNextProcess()) {
+                    usleep($this->checkWaitMicroseconds);
+                } else {
+                    break;
+                }
             }
 
             $this->startOneProcess(...$item);
@@ -181,7 +185,7 @@ class MultiProcess
             }
         }
         if ($hasFinished) {
-            return $this->canStartNextProcess();
+            return true;
         }
 
         $this->log('too many process, wait ...', 'debug');
@@ -194,16 +198,16 @@ class MultiProcess
      */
     protected function waitAllProcess(): void
     {
-        if (count($this->inProcess) <= 0) {
-            return;
-        }
-        foreach ($this->inProcess as $name => $process) {
-            $this->checkAndUnsetFinishedProcess($name, $process);
-        }
+        while (true) {
+            if (count($this->inProcess) <= 0) {
+                break;
+            }
+            foreach ($this->inProcess as $name => $process) {
+                $this->checkAndUnsetFinishedProcess($name, $process);
+            }
 
-        usleep($this->checkWaitMicroseconds);
-
-        $this->waitAllProcess();
+            usleep($this->checkWaitMicroseconds);
+        }
     }
 
     /**

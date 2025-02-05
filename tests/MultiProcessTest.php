@@ -217,7 +217,9 @@ class MultiProcessTest extends TestCase
             ->add(PendingTaskProcess::createFromTask(fn() => CallbackClass::getHostname()), 'p8')
             ->wait();
 
-        $outputs = array_values($results->getOutputs());
+        $outputs = $results->getOutputs();
+        ksort($outputs); // keep p1-p7 order
+        $outputs = array_values($outputs);
         $this->assertEquals(array_fill(0, 5, $hostname), array_splice($outputs, 0, 5));
         $this->assertEquals([1, 2], TaskHelper::decode($results->getOutput('p6')));
         $this->assertInstanceOf(CallbackClass::class, TaskHelper::decode($results->getOutput('p7')));
